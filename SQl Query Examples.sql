@@ -1,4 +1,5 @@
--- SQL Query Practice - StrataScratch Examples 
+-- SQL Query Practice - StrataScratch Examples. 
+-- Easy --> Medium --> Difficult
  
 /* 1. Find the average number of bathrooms and bedrooms for each city’s property types. 
 Output the result along with the city name and the property type. */
@@ -76,4 +77,27 @@ on e.department = d.department
 order by e.department
 
 
+/* 7. Meta/Facebook has developed a new programming language called Hack. To measure the popularity of Hack they ran a survey with their employess. 
+The survey included data on previous programming familiarity as well as the number of years of experience, age, gender and most popularity of Hack
+by office location. Luckily the user IDs of employees completing the surveys were stored.
+Based on the above, find the average popularity of the Hack per office location. 
+Output the location along with the average popularity. */
 
+--select * from facebook_employees;
+--select * from facebook_hack_survey;
+
+select e.location, AVG(popularity) as avg_pop --s.employee_id, e.id
+from facebook_hack_survey as s
+join facebook_employees as e
+on s.employee_id = e.id
+group by e.location
+order by avg_pop
+
+
+/* 8. Find the lat time each bike was in use. Output both the bike number and the date-timestamp of the bike's last use (ie, the date-time the bike was returned).
+Order the results by bikes that were most recently used. */
+
+select bike_number, max(end_time) as last_used
+from dc_bikeshare_q1_2012
+group by bike_number
+order by last_used desc
