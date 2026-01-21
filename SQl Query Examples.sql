@@ -94,10 +94,25 @@ group by e.location
 order by avg_pop
 
 
-/* 8. Find the lat time each bike was in use. Output both the bike number and the date-timestamp of the bike's last use (ie, the date-time the bike was returned).
+/* 8. Find the last time each bike was in use. Output both the bike number and the date-timestamp of the bike's last use (ie, the date-time the bike was returned).
 Order the results by bikes that were most recently used. */
 
 select bike_number, max(end_time) as last_used
 from dc_bikeshare_q1_2012
 group by bike_number
 order by last_used desc
+
+/* 9. We have a table with employees and their salaries, however, some of the records are old and contain outdated salary information. Find the current salary of each employee
+assuming that salaries increase each year. Output their id, first name, last name, department ID, and current salary. Order your list by employee ID in ascending order.  */
+
+--select * from ms_employee_salary;
+select id, first_name, last_name, department_id, salary
+from (
+select *, row_number() over (
+            partition by id
+            order by salary desc, department_id desc
+            ) 
+        from ms_employee_salary
+) 
+where row_number = 1
+order by id 
