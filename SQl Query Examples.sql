@@ -125,3 +125,16 @@ from db_employee as e
 join db_dept as d 
 on e.department_id = d.id
 where d.department in ('marketing', 'engineering');
+
+/* 11. Management wants to analyze only employees with official job titles. Find the job titles of the employees with the highest salary. If multiple employees have the same highest salary, include all their job titles.*/
+
+select t.worker_title as best_paid_titles
+from title as t
+join worker as w
+on w.worker_id = t.worker_ref_id
+where w.salary = 
+    (select max(a.salary) 
+     from worker as a
+     join title as b
+     on a.worker_id = b.worker_ref_id
+     where b.worker_title is not null)
