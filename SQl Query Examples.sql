@@ -138,3 +138,58 @@ where w.salary =
      join title as b
      on a.worker_id = b.worker_ref_id
      where b.worker_title is not null)
+	 
+/* 12. Return the total number of comments received for each user in the 30-day period up to and including 2020-02-10. Don't output users who haven't received any comment in the defined time period. */
+select user_id, sum(number_of_comments) as num_of_comments
+from fb_comments_count
+where created_at between '2020-01-11' and '2020-02-10'
+group by user_id
+having sum(number_of_comments) > 0
+order by sum(number_of_comments)
+
+/* 13. Return the total number of posts for each month, aggregated across all the years (i.e., posts in January 2019 and January 2020 are both combined into January). Output the month number (i.e., 1 for January, 2 for February) and the total number of posts in that month.*/
+select month(post_date) as month, count(*) as count_of_posts
+from facebook_posts
+group by month(post_date)
+order by month
+
+/* 14. How many paid users had any calls in Apr 2020? */
+SELECT COUNT(DISTINCT u.user_id)
+FROM rc_users AS u
+INNER JOIN rc_calls AS c
+    ON u.user_id = c.user_id
+WHERE
+    MONTH(call_date) = 4 AND YEAR(call_date) = 2020
+    AND
+    status = 'paid'
+
+/* 15. Return a list of users with status free who didn't make any calls in APr 2020 */
+
+select distinct u.user_id
+from rc_users as u
+left join rc_calls as c
+on u.user_id = c.user_id
+and
+c.call_date between '2020-04-01' and '2020-04-30'
+where u.status = 'free' 
+    and 
+c.user_id is null
+
+
+/* 16. Write a query that returns the number of unique users per client for each month. Assume all events occur within the same year, so only month needs to be be in the output as a number from 1 to 12. */
+
+select month(time_id) as month, client_id, count(distinct user_id) as unique_users  
+from fact_events
+group by month(time_id), client_id
+order by month(time_id)
+
+/* 17. Find the number of unique transactions and total sales for each of the product categories in 2017. Output the product categories, number of transactions, and total sales in descending order. The sales column represents the total cost the customer paid for the product so no additional calculations need to be done on the column.
+Only include product categories that have products sold. */
+
+select count(distinct t.transaction_id) as transactions, sum(t.sales) as tot_sales, p.product_category
+from wfm_transactions as t
+join wfm_products as p
+on t.product_id = p.product_id
+where year(t.transaction_date) = 2017 and p.product_category is not null
+group by p.product_category
+order by p.product_category, tot_sales desc
