@@ -193,3 +193,133 @@ on t.product_id = p.product_id
 where year(t.transaction_date) = 2017 and p.product_category is not null
 group by p.product_category
 order by p.product_category, tot_sales desc
+
+/* 18. Return all employees who have never had an annual review. Your output should include the employee's first name, last name, hiring date, and termination date. List the most recently hired employees first. */
+select e.first_name, e.last_name, e.hire_date, e.termination_date
+from  uber_employees as e
+left join uber_annual_review as r
+on e.id=r.emp_id
+where r.emp_id is null
+order by e.hire_date desc
+
+/* 19. Uber is interested in identifying gaps in their business. Calculate the count of orders for each status of each service. Your output should include the service name, status of the order, and the number of orders. */
+select service_name, status_of_order, sum(number_of_orders) as ct
+from uber_orders
+group by service_name, status_of_order
+order by service_name, status_of_order
+
+/* 20. Find the monthly active users for January 2021 for each account. Your output should have account_id and the monthly count for that account.*/
+select account_id, count(distinct user_id)
+from sf_events
+where year(record_date) = 2021 and month(record_date) = 1
+group by account_id
+order by account_id
+
+/* 21. Write a query that will calculate the number of shipments per month. The unique key for one shipment is a combination of shipment_id and sub_id. Output the year_month in format YYYY-MM and the number of shipments in that month. */
+select count(concat(shipment_id,'-', sub_id)) as num_shipments, format(shipment_date, 'yyyy-MM') as year_month
+from amazon_shipment
+group by format(shipment_date, 'yyyy-MM')
+
+/* 22. Write a query to find the weight for each shipment's earliest shipment date. Output the shipment id along with the weight. */
+with cte as (
+select shipment_id, weight, shipment_date,
+row_number() over(
+partition by shipment_id
+order by shipment_date asc
+)  as rn
+from amazon_shipment
+)
+select shipment_id, weight
+from cte
+where rn=1
+
+-- OR
+
+WITH cte AS
+  (SELECT shipment_id,
+          MIN(shipment_date) AS min_date
+   FROM amazon_shipment
+   GROUP BY shipment_id)
+SELECT cte.shipment_id,
+       weight
+FROM amazon_shipment
+JOIN cte ON amazon_shipment.shipment_id = cte.shipment_id
+WHERE min_date = shipment_date
+
+
+/* 23. Calculate the total weight for each shipment and add it as a new column. Your output needs to have all the existing rows and columnn in addition to the new column that shows the total weight for each shipment. One shipment can have multiple rows. */
+with cte as (
+select shipment_id, sum(weight) as total_weight
+from amazon_shipment
+group by shipment_id
+) 
+select s1.shipment_id, s1.sub_id, s1.weight,s1.shipment_date, cte.total_weight
+from amazon_shipment as s1
+join cte
+on s1.shipment_id=cte.shipment_id
+
+/* 24. Count the number of users who made more than 5 searches in August 2021 */
+with cte as (
+select count(user_id) as tot_count, user_id
+from fb_searches
+where month(date)=8 and year(date)=2021
+group by user_id
+having count(user_id)>5
+)
+select count(distinct user_id) from cte
+
+--OR
+
+SELECT COUNT(user_id) AS result
+FROM
+  (SELECT user_id,
+          COUNT(search_id) AS august_searches
+   FROM fb_searches
+   WHERE date BETWEEN '2021-08-01' AND '2021-08-31'
+   GROUP BY user_id) a
+WHERE august_searches > 5;
+
+/* 25. How many searches were there in the second quarter of 2021? */
+select count(search_id) as tot_searches
+from fb_searches
+where month(date) in (4,5,6) and year(date)=2021
+
+
+-- OR
+
+SELECT COUNT(search_id) AS RESULT
+FROM fb_searches
+WHERE DATEPART(QUARTER, date) = 2
+  AND YEAR(date) = 2021
+
+-- Postgres SQL:
+SELECT count(search_id) AS RESULT
+FROM fb_searches
+WHERE extract(QUARTER
+              FROM date) = 2
+  AND extract(YEAR
+              FROM date) = 2021
+
+/* 26. You are given a list of exchange rates from various currencies to US Dollars (USD) in different months. Show how the exchange rate of all the currencies changed in the first half of 2020. Output the currency code and the difference between values of the exchange rate between July 1, 2020 and January 1, 2020. */
+-- using lag function and cte
+with cte as (
+select  source_currency,
+        exchange_rate,
+        date,
+        exchange_rate - lag(exchange_rate, 1,0) over (partition by source_currency order by date) as difference
+from sf_exchange_rate
+where month(date) in (1,7) and year(date)=2020
+)
+select source_currency, difference
+from cte
+where date = '2020-07-01'
+
+--OR
+
+select jan.source_currency, jul.exchange_rate - jan.exchange_rate as diff
+from sf_exchange_rate as jan
+join sf_exchange_rate as jul 
+on jan.source_currency = jul.source_currency
+where jan.date = '2020-01-01' and jul.date='2020-07-01'
+
+/* What percentage of all products are both low fat and recyclable? */
