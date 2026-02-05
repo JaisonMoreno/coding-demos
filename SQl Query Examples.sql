@@ -322,4 +322,70 @@ join sf_exchange_rate as jul
 on jan.source_currency = jul.source_currency
 where jan.date = '2020-01-01' and jul.date='2020-07-01'
 
-/* What percentage of all products are both low fat and recyclable? */
+/* 27. What percentage of all products are both low fat and recyclable? */ 
+-- ms sql server
+select sum(case
+            when is_low_fat = 'Y'
+            and is_recyclable = 'Y' then 1
+            else 0
+            end) / cast(count(*) as float) * 100 as percentage
+from facebook_products
+
+-- postgres
+SELECT SUM(CASE
+               WHEN is_low_fat = 'Y'
+                    AND is_recyclable = 'Y' THEN 1
+               ELSE 0
+           END) / COUNT(*)::float * 100.0 as percentage
+FROM facebook_products
+
+/* 28. The marketing manager wants you to evaluate how well the previously ran advertising campaigns are working.
+Particularly, they are interested in the promotion IDs from the online_promotions table.
+Calculate the percentage of orders in the online_orderstable that used a promotion from the online_promotions table. */
+select (cast(count(p.promotion_id) as float)/count(*)) * 100 as percentage --count(*) as tot, count(p.promotion_id) as num_prom 
+from online_orders as o
+left join online_promotions as p
+on o.promotion_id = p.promotion_id
+
+
+/* 29. For each platform (e.g. Windows, iPhone, iPad etc.), calculate the number of users. Count the number of distinct users per platform, regardless of whether they used other platforms. Output the name of the platform with the corresponding number of users. */
+select platform, count(distinct user_id) as num_users
+from user_sessions
+group by platform
+order by platform
+
+/* 30. Count how many claims submitted in Dec 2021 are still pending. A claim is pending when it has neither an acceptance nor rejection date. */
+select count(*) as pending
+from cvs_claims
+where date_accepted is NULL and date_rejected is NUll
+and extract(year from date_submitted) = 2021 and extract(month from date_submitted)=12
+
+
+/* 31. For each video game player, find the latest date when they logged in. */
+with cte as (
+select player_id, login_date, row_number() over (partition by player_id order by login_date desc) as rn
+from players_logins
+)
+select  player_id, login_date
+from cte 
+where rn = 1
+
+-- or can use max() func to simplify
+select player_id, max(login_date)
+from players_logins
+group by player_id;
+
+/* 32. Given the education levels and salaries of a group of individuals, find what is the average salary for each level of education. */
+select education, avg(cast(salary as float)) as avg_salary
+from google_salaries
+group by education
+order by avg_salary desc
+
+/* 33. Write a query to return all Customers (cust_id) who are violating primary key constraints in the Customer Dimension (dim_customer) i.e. those Customers who are present more than once in the Customer Dimension.
+For example if cust_id 'C123' is present thrice then the query should return two columns, value in first should be 'C123', while value in second should be 3  */
+select cust_id, count(cust_id) as num
+from dim_customer
+group by cust_id
+having count(cust_id)>=2
+
+/* 
