@@ -388,4 +388,210 @@ from dim_customer
 group by cust_id
 having count(cust_id)>=2
 
-/* 
+/* 34. Write a query to get a list of products that have not had any sales. Output the ID and market name of these products. */
+select p.prod_sku_id as salesid, market_name
+from dim_product as p
+left join fct_customer_sales as s
+on s.prod_sku_id=p.prod_sku_id
+where s.prod_sku_id is null
+order by market_name
+
+/* 35. How many orders were shipped by Speedy Express in total? */
+select count(*) as num_orders
+from shopify_orders
+join shopify_carriers
+on shopify_orders.carrier_id = shopify_carriers.id
+where lower(name) = 'speedy express'
+
+
+/* 36. Find the number of account registrations according to the signup date. Output the year months (YYYY-MM) and their corresponding number of registrations. */
+select count(*) as ct,  format(started_at, 'yyyy-MM') as year_month  --count(signup_id), format(started_at, 'yyyy-mm') as year_month
+from noom_signups
+group by format(started_at, 'yyyy-MM')
+order by year_month
+
+/* 37. Calculate the sales revenue for the year 2021. */
+select sum(order_total) as revenue
+from amazon_sales
+where extract(year from order_date) = 2021
+
+/* 38. You are given a list of posts of a Facebook user. Find the average number of likes */
+select avg(cast(no_of_likes as float)) as avg_likes
+from fb_posts
+
+/* 39. Amazon's information technology department is looking for information on employees' most recent logins.
+The output should include all information related to each employee's most recent login. */
+with cte as (
+select worker_id, max(login_timestamp) as last_login 
+from worker_logins
+group by worker_id
+)
+select worker_logins.* 
+from worker_logins
+join cte
+on worker_logins.worker_id = cte.worker_id and
+worker_logins.login_timestamp = cte.last_login
+
+-- or using rank 
+WITH cte AS
+  (SELECT worker_id,
+          login_timestamp,
+          RANK() OVER(PARTITION BY worker_id
+                      ORDER BY login_timestamp DESC) AS rnk
+   FROM worker_logins)
+SELECT w.*
+FROM worker_logins w
+JOIN cte c ON w.worker_id = c.worker_id
+AND w.login_timestamp = c.login_timestamp
+WHERE c.rnk = 1
+
+/* 40. You've been asked by Amazon to find the shipment_id and weight of the third heaviest shipment.
+Output the shipment_id, and total_weight for that shipment_id.
+In the event of a tie, do not skip ranks.*/
+with cte as (
+select shipment_id, 
+sum(weight) as total_weight,
+--rank() over(order by sum(weight) desc) as rnk,
+dense_rank() over(order by sum(weight) desc) as dnsrnk
+--row_number() over(order by sum(weight) desc) as rnum
+from amazon_shipment
+group by shipment_id
+) 
+select shipment_id, total_weight
+from cte
+where dnsrnk=3
+
+/* 41. You have been asked to find the number of employees hired between the months of January and July in the year 2022 inclusive.
+Your output should contain the number of employees hired in this given time frame. */
+select count(*)
+from employees
+where joining_date between '2022-01-01' and '2022-07-31'
+
+
+/* 42. You have been tasked with finding the worker IDs of individuals who logged in between the 13th to the 19th inclusive of December 2021.
+In your output, provide the unique worker IDs for the dates requested. */
+select distinct(worker_id)
+from worker_logins
+where year(login_timestamp)=2021 and 
+day(login_timestamp) between 13 and 19
+order by worker_id
+
+/* 43. The sales division is investigating their sales for the past month in Oregon.
+Calculate the total revenue generated from Oregon-based customers for April 2022. */
+select sum(o.cost_in_dollars * o.units_sold) as revenue
+from online_orders as o
+join online_customers as c
+on o.customer_id=c.id
+where lower(c.state) = 'oregon' and year(date_sold)=2022 and month(date_sold)=4
+
+/* 44. You have been asked to sort movies according to their duration in descending order.
+Your output should contain all columns sorted by the movie duration in the given dataset.*/
+-- ms sql
+select *
+from movie_catalogue
+order by try_cast(replace(duration, 'min', '') as int) desc, title
+
+--postgres
+SELECT *
+FROM movie_catalogue
+ORDER BY CAST(regexp_replace(duration, '[^0-9]+', '') AS DECIMAL) DESC;
+
+/* 45. You've been asked to arrange a column of random IDs in ascending alphabetical order based on their second character. */
+select id
+from random_id
+order by substring(id, 2,1) 
+
+/* 46. Find SAT scores of students whose high school names do not end with 'HS'. */
+select * 
+from sat_scores
+where right(school, 2)<>'HS'
+
+/* 47. Find hotels in the Netherlands that got complaints from guests about room dirtiness (word "dirty" in its negative review). Output all the columns in your results */
+select * from hotel_reviews
+where lower(negative_review) LIKE '%dirty%' and
+lower(hotel_address) LIKE '%netherlands%'
+
+/* 48. Find the date when Apple's opening stock price reached its maximum */
+select date 
+from aapl_historical_stock_price
+where open = (select max(open) from aapl_historical_stock_price)
+
+--
+select date 
+from aapl_historical_stock_price
+order by open desc
+limit 1
+
+/* 49. Find the search details for apartments where the property type is Apartment and the accommodation is suitable for one person.*/
+select * 
+from airbnb_search_details
+where lower(property_type) = 'apartment' and
+accommodates = 1
+
+/* 50. Find all searches for accommodations where the number of bedrooms is equal to the number of bathrooms.*/
+select * 
+from airbnb_search_details
+where bedrooms = bathrooms
+
+/* 51. Find distinct searches for Los Angeles neighborhoods. Output neighborhoods and remove duplicates.*/
+select distinct neighbourhood
+from airbnb_search_details
+where upper(city) = 'LA' 
+and neighbourhood is not null
+order by neighbourhood
+
+
+/* 52. Find the search details for villas and houses with wireless internet access.*/
+select *
+from airbnb_search_details
+where lower(property_type) in ('villa', 'house')
+and lower(amenities) like '%wireless internet%'
+
+/* 53. Find all search details where data is missing from the host_response_rate column.*/
+select * 
+from airbnb_search_details
+where host_response_rate is null
+
+/* 54. Find all searches for San Francisco with a flexible cancellation policy and a review score rating. Sort the results by the review score in the descending order. */
+select * 
+from airbnb_search_details
+where upper(city) = 'SF'
+and lower(cancellation_policy) = 'flexible' 
+and review_scores_rating is not null
+order by review_scores_rating desc
+
+---------------------- MEDIUM DIFFICULTY ------------------------------
+/* 1.  Write a query that returns a table containing the number of signups for each weekday and for each billing cycle frequency. The day of the week standard we expect is from Sunday as 0 to Saturday as 6.
+Output the weekday number (e.g., 1, 2, 3) as rows in your table and the billing cycle frequency (e.g., annual, monthly, quarterly) as columns. If there are NULLs in the output replace them with zeroes. */
+
+set datefirst 7
+select datepart(weekday, s.signup_start_date) - 1 as weekday,
+sum(IIF(billing_cycle = 'annual', 1, 0 )) as annual,
+sum(IIF(billing_cycle = 'monthly', 1, 0)) as monthly,
+sum(IIF(billing_cycle = 'quarterly', 1,0)) as quarterly
+from signups as s
+join plans as p
+on s.plan_id = p.id
+group by datepart(weekday, s.signup_start_date) - 1
+
+-- OR
+
+select 
+datepart(weekday, signup_start_date) -1 as weekday,
+sum(case when billing_cycle = 'annual'then 1 else 0 end) as annual, 
+sum(case when billing_cycle = 'monthly'then 1 else 0 end) as monthly, 
+sum(case when billing_cycle = 'quarterly'then 1 else 0 end) as quarterly
+from signups as s
+join plans as p
+on s.plan_id = p.id
+group by datepart(weekday, s.signup_start_date) - 1
+
+-- Postgres
+select extract(dow from signup_start_date) as weekday,
+sum(case when billing_cycle = 'annual' then 1 else 0 end) as annual,
+sum(case when billing_cycle = 'monthly' then 1 else 0 end) as monthly,
+    sum(case when billing_cycle = 'quarterly' then 1 else 0 end) as quarterly
+from signups as s
+join plans as p
+on s.plan_id = p.id
+group by extract(dow from signup_start_date)
