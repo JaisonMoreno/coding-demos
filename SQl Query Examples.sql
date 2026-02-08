@@ -595,3 +595,68 @@ from signups as s
 join plans as p
 on s.plan_id = p.id
 group by extract(dow from signup_start_date)
+
+/* 2. Calculate the churn rate of September 2021 in percentages. The churn rate is the difference between the number of customers on the first day of the month and on the last day of the month, divided by the number of customers on the first day of a month.
+Assume that if customer's contract_end is NULL, their contract is still active. Additionally, if a customer started or finished their contract on a certain day, they should still be counted as a customer on that day. */
+with cte as (
+select user_id, 
+(case when contract_start <= '2021-09-01' then 1 end) as client,
+(case when contract_end>= '2021-09-30' or contract_end is null then 1 end) as churn
+from natera_subscriptions
+)
+select 100 *  (sum(client) - sum(churn))/sum(client) as churn
+from cte
+where client is not null
+
+/* 3. Calculate and display the minimum, average and the maximum number of days it takes to process a refund for accounts opened from January 1, 2019. Group by billing cycle in months.
+Note: The time frame for a refund to be fully processed is from settled_at until refunded_at. */
+select p.billing_cycle_in_months as billing_cycle,
+       min(datediff(day, settled_at, refunded_at)) as min_days,
+       avg(cast(datediff(day, settled_at, refunded_at) as float)) as avg_days,
+       max(datediff(day, settled_at, refunded_at)) as max_days
+from noom_transactions as t
+join noom_signups as s
+    on t.signup_id = s.signup_id
+join noom_plans as p
+    on s.plan_id = p.plan_id
+where s.started_at >= '2019-01-01'
+group by p.billing_cycle_in_months
+
+/* 4. You have been asked to calculate the average age by gender of people who filed more than 1 claim in 2021.
+The output should include the gender and average age rounded to the nearest whole number. */
+
+with cte as (
+select c.account_id, count(*) as num_claims
+from cvs_claims as c
+join cvs_accounts as a
+on c.account_id = a.account_id
+where year(date_submitted) = 2021 
+group by c.account_id
+)
+
+select gender, avg(age)
+from cvs_claims as c
+join cvs_accounts as a
+    on c.account_id = a.account_id
+join cte 
+    on c.account_id=cte.account_id
+where num_claims>1
+group by gender
+
+/* 5. Write a SQL query to show each loan and its rate type. For each loan, create two new columns: fixed and variable. If the loan has a fixed rate, put a 1 in the fixed column and a 0 in the variable column. If the loan has a variable rate, do the opposite. */
+select loan_id, 
+(case when lower(rate_type) = 'variable' then 1 else 0 end) as variable,
+(case when lower(rate_type) = 'fixed' then 1 else 0 end) as fixed
+from submissions
+order by loan_id
+
+/* 6. Write a query that returns the rate_type, loan_id, loan balance , and a column that shows with what percentage the loan's balance contributes to the total balance among the loans of the same rate type. Sort the final output by rate_type and loan_id. */
+with cte as (
+select rate_type, sum(balance) as total_balance
+from submissions
+group by rate_type
+)
+select s.rate_type, s.loan_id, s.balance, (s.balance/cte.total_balance) * 100 as percentage
+from submissions s
+join cte 
+on cte.rate_type = s.rate_type
