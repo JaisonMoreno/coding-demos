@@ -660,3 +660,88 @@ select s.rate_type, s.loan_id, s.balance, (s.balance/cte.total_balance) * 100 as
 from submissions s
 join cte 
 on cte.rate_type = s.rate_type
+
+--OR
+
+select rate_type, loan_id, balance,  100 * (balance / sum(balance) over(partition by rate_type)) as percentage
+from submissions
+
+/* 7. Write a query to return the total loan balance for each user based on their most recent "Refinance" submission. The submissions table joins to the loans table using loan_id from submissions and id from loans. */
+with cte as (
+select
+l.user_id, balance,
+row_number() over(partition by user_id order by created_at desc) as rn
+from loans l
+join submissions s
+    on l.id = s.loan_id
+where type = 'Refinance'
+)
+
+select user_id,	balance
+from cte
+where rn=1
+
+/* 8. Calculate the percentage of users who are both from the US and have an 'open' status, as indicated in the fb_active_users table. */
+select 100 * (
+                cast(count(*) filter(where country = 'USA' and lower(status)='open') as float) /
+                cast(count(*) as float)
+            )
+from fb_active_users
+
+-- OR
+select 
+sum(case when status = 'open' and country='USA' then 1 else 0 end) * 100.0 /
+count(*)
+from fb_active_users
+
+/* 9. List the top 3 users who accumulated the most sessions. Include only the user who had more streaming sessions than viewing. Return the user_id, number of streaming sessions, and number of viewing sessions. */
+with 
+cte1 as (
+select user_id, count(*) as sessions
+from twitch_sessions
+group by user_id
+),
+cte2 as (
+select user_id,
+sum(case when lower(session_type) = 'streamer' then 1 else 0 end) as streams,
+sum(case when lower(session_type) = 'viewer' then 1 else 0 end) as views
+from twitch_sessions
+group by user_id
+having sum(case when lower(session_type) = 'streamer' then 1 else 0 end) >
+       sum(case when lower(session_type) = 'viewer' then 1 else 0 end)
+) 
+
+select top 3 
+cte2.user_id, streams, views
+from cte2 
+join cte1  
+    on cte1.user_id=cte2.user_id
+order by sessions desc
+
+/* 10. Which hour of the day has the highest average number of orders across all recorded days? Your output should include the hour that satisfies this condition and the corresponding average number of orders per hour. The "order volume" refers to the count of orders placed within each hour of the day. */
+with cte as (
+select cast(order_timestamp_utc as date) as date, sum(amount) as orders, name
+from postmates_orders as o
+join postmates_markets as m
+    on o.city_id=m.id
+where cast(order_timestamp_utc as date) in ('2019-03-11', '2019-04-11')
+group by cast(order_timestamp_utc as date), name
+order by name, date
+),
+
+cte2 as (
+select *,
+lead(orders, 1) over(partition by name order by date asc) as after,
+lead(orders, 1) over(partition by name order by date asc) - orders as diff
+from cte
+),
+
+cte3 as (
+select name, diff,
+dense_rank() over(order by diff) as rnk
+from cte2 
+where date = '2019-03-11'
+)
+
+select * from cte3
+where rnk = (select max(rnk) from cte3) or rnk=(select min(rnk) from cte3)
