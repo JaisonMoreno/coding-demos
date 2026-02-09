@@ -824,3 +824,20 @@ from redfin_call_tracking
 select avg(call_duration)
 from cte
 where rn=1
+
+/* 15. Redfin helps clients to find agents. Each client will have a unique request_id and each request_id has several calls. For each request_id, the first call is an “initial call” and all the following calls are “update calls”.  What's the average call duration for all update calls? */
+with cte as (
+select *,
+row_number() over(partition by request_id order by created_on asc) as rn
+from redfin_call_tracking
+)
+select avg(call_duration) filter(where rn != 1)
+from cte
+
+/* 16. Redfin helps clients to find agents. Each client will have a unique request_id and each request_id has several calls. For each request_id, the first call is an “initial call” and all the following calls are “update calls”.  How many customers have called 3 or more times between 3 PM and 6 PM (initial and update calls combined)? */
+select count(distinct request_id) as n_cust
+from redfin_call_tracking
+where datepart(hour, created_on) in (15,16,17)
+group by request_id
+having count(request_id) >=3
+order by count(request_id)
