@@ -745,3 +745,82 @@ where date = '2019-03-11'
 
 select * from cte3
 where rnk = (select max(rnk) from cte3) or rnk=(select min(rnk) from cte3)
+
+
+/* 11. Which partners have ‘pizza’ in their name and are located in Boston? And what is the average order amount? Output the partner name and the average order amount. */
+with cte as (
+select p.name as partnername, m.name as city, amount
+from postmates_orders o
+join postmates_markets as m
+    on o.city_id = m.id
+join postmates_partners p
+    on o.seller_id=p.id
+where lower(p.name) like '%pizza%' and lower(m.name) = 'boston'
+)
+
+select partnername, avg(amount) as avg_amt
+from cte
+group by partnername
+
+/* 12. Return the top 2 users in each company that called the most. Output the company_id, user_id, and the user's rank. If there are multiple users in the same rank, keep all of them. */
+with cte as (
+select company_id, c.user_id, count(*) as num_calls
+from rc_calls c
+join rc_users u
+    on c.user_id=u.user_id
+group by company_id, c.user_id
+),
+
+cte1 as (
+select *,
+dense_rank() over(partition by company_id order by num_calls desc) as rnk
+from cte 
+)
+
+select company_id, user_id, rnk
+from cte1
+where rnk<=2
+
+
+/* 13. Which company had the biggest month call decline from March to April 2020? Return the company_id and calls difference for the company with the highest decline.*/
+
+with cte as (
+select  company_id, 
+        extract(year from call_date) as year,
+        extract(month from call_date) as month,
+        count(*) as mar_calls,
+        lead(count(*),1) over(partition by company_id order by extract(year from call_date), extract(month from call_date) asc) as Apr_calls
+from rc_calls c
+join rc_users u
+    on c.user_id=u.user_id
+where extract(month from call_date) in (3,4) and
+      extract(year from call_date) = 2020 
+group by company_id, 
+         extract(year from call_date),
+         extract(month from call_date)
+)
+
+select company_id, apr_calls - mar_calls as call_diff
+from cte
+where month=3
+order by call_diff 
+limit 1
+
+/* 14. Redfin helps clients to find agents. Each client will have a unique request_id and each request_id has several calls. For each request_id, the first call is an “initial call” and all the following calls are “update calls”.  What's the average call duration for all initial calls? */
+with cte as (
+select *,
+row_number() over(partition by request_id order by created_on) as rn
+from redfin_call_tracking
+)
+select avg(call_duration) filter(where rn = 1)
+from cte
+
+-- OR
+with cte as (
+select *,
+row_number() over(partition by request_id order by created_on) as rn
+from redfin_call_tracking
+)
+select avg(call_duration)
+from cte
+where rn=1
