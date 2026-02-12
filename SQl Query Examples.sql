@@ -996,3 +996,17 @@ group by product_class
 select product_class
 from cte
 where rn<=3
+
+/* 23. The sales department wants to identify lower-priced products that still sell well.
+
+
+Find product IDs that meet both of the following criteria:
+⦁    The product has been sold at least twice (i.e., appeared in at least two different purchases).
+⦁    The unit-weighted average sale price (cost_in_dollars) for that product is at least $3. A unit-weighted average sales price is defined as the total revenue for the product divided by the total number of units sold.
+Return a list containing product IDs along with their corresponding brand name. */
+select o.product_id, min(p.brand_name)
+from online_orders o
+join online_products p
+    on o.product_id=p.product_id
+group by o.product_id
+having count(*) >=2 and sum(cast(cost_in_dollars as float)*units_sold) / sum(units_sold)  >3.0
