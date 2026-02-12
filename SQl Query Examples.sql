@@ -841,3 +841,158 @@ where datepart(hour, created_on) in (15,16,17)
 group by request_id
 having count(request_id) >=3
 order by count(request_id)
+
+/* 17. Considering a dataset that tracks user interactions with different clients, identify which clients have users who are exclusively loyal to them (i.e., they don't interact with any other clients).
+For each of these clients, calculate the number of such exclusive users. The output should include the client_id and the corresponding count of exclusive users.*/
+WITH exclusive_pairs AS
+  (SELECT user_id,
+          MIN(client_id) AS client_id
+   FROM fact_events GROUP  BY user_id
+   HAVING COUNT(DISTINCT client_id) = 1)
+SELECT client_id,
+       COUNT(*) AS exclusive_users
+FROM exclusive_pairs
+GROUP BY client_id
+ORDER BY exclusive_users DESC;
+
+/* 18. Write a query that will return all cities with more customers than the average number of  customers of all cities that have at least one customer. For each such city, return the country name,  the city name, and the number of customers */
+
+with cte as (
+select city.id, count(*) n_cust
+from linkedin_customers as cust
+right join linkedin_city as city
+    on cust.city_id = city.id
+group by city.id
+)
+
+select distinct country_name, city_name, n_cust
+from linkedin_customers as cust
+right join linkedin_city as city
+    on cust.city_id = city.id
+join linkedin_country as cntry
+    on city.country_id=cntry.id
+join cte
+    on cte.id = city.id
+where n_cust > 
+    (select avg(n_cust)
+    from cte
+    where n_cust >1
+    )
+    
+-- OR
+
+    
+WITH cities_customers AS (
+    SELECT
+        country.country_name AS country,
+        city.city_name AS city,
+        count(customer.id) AS total_customers
+    FROM linkedin_country country
+    INNER JOIN linkedin_city city
+        ON city.country_id = country.id
+    INNER JOIN linkedin_customers customer
+        ON city.id = customer.city_id
+    GROUP BY 
+        country.country_name,
+        city.city_name   
+),
+
+avg_customers AS (
+    SELECT count(id) * 1.0 as ct, count(DISTINCT city_id) as den,
+        count(id) * 1.0 / count(DISTINCT city_id) AS avg_cus_per_city
+    FROM linkedin_customers
+)
+        
+SELECT
+    country,
+    city,
+    total_customers
+FROM cities_customers
+WHERE
+    total_customers > (SELECT avg_cus_per_city FROM avg_customers)
+
+/* 19. Which user flagged the most distinct videos that ended up approved by YouTube? Output, in one column, their full name or names in case of a tie. In the user's full name, include a space between the first and the last name. */
+select (user_firstname + ' ' + user_lastname) as name,
+        count(distinct video_id) as n_vids,
+        rank() over(order by count(distinct video_id) desc) as rnk
+from user_flags as f
+join flag_review as r
+    on f.flag_id=r.flag_id
+where lower(reviewed_outcome) = 'approved'
+group by user_firstname, user_lastname
+)
+
+select name from cte
+where rnk = 1
+
+/* 20. Find the most profitable location. Write a query that calculates the average signup duration in days and the average transaction amount for each location. Then, calculate the ratio of average transaction amount to average duration.
+Your output should include the location, average signup duration (in days), average transaction amount, and the ratio. Sort the results by ratio in descending order. */
+ with days as (
+select 
+location,
+avg(signup_stop_date - signup_start_date) as mean_duration
+from signups
+group by location
+),
+
+revenue as (
+select location, avg(amt) as mean_revenue
+from transactions t
+join signups s
+    on s.signup_id=t.signup_id
+group by location
+),
+
+combined as (
+select distinct d.location, mean_duration, mean_revenue
+from signups s
+    join days d
+        on s.location = d.location
+    join revenue r
+        on s.location = r.location
+)
+
+select *, mean_revenue/mean_duration as ratio
+from combined
+order by ratio desc
+
+/* 21.You are given a table named airbnb_host_searches that contains listings shown to users during Airbnb property searches. Each record represents a property listing (not the user's search query). Determine the minimum, average, and maximum rental prices for each host popularity rating based on the property's number_of_reviews.
+The host’s popularity rating is defined as below:
+•   0 reviews: "New"
+•   1 to 5 reviews: "Rising"
+•   6 to 15 reviews: "Trending Up"
+•   16 to 40 reviews: "Popular"
+•   More than 40 reviews: "Hot"
+
+Tip: The id column in the table refers to the listing ID.
+Output host popularity rating and their minimum, average and maximum rental prices. Order the solution by the minimum price. */
+
+select
+    (case 
+        when number_of_reviews = 0 then 'New'
+        when number_of_reviews between 1 and 5 then 'Rising'
+        when number_of_reviews between 6 and 15 then 'Trending Up'
+        when number_of_reviews between 16 and 40 then 'Popular'
+        when number_of_reviews >40 then'Hot' else 'Missing' end) as pop_rating,
+        min(price) as min_price,
+        avg(price) as avg_price,
+        max(price) as max_price
+    from airbnb_host_searches
+    group by pop_rating
+    order by min_price
+
+/* 22. The marketing department wants to identify the top-performing product classes based on the number of orders placed for each class.
+If multiple product classes have the same number of sales and qualify for the top 3, include all of them in the output. */
+
+with cte as (
+select product_class, count(*) as n_orders,
+dense_rank() over(order by count(*) desc) as rn
+from online_orders as o 
+join online_products as p
+    on o.product_id=p.product_id
+group by product_class
+)
+
+select product_class
+from cte
+where rn<=3
