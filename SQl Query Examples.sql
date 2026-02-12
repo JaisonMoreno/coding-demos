@@ -1010,3 +1010,19 @@ join online_products p
     on o.product_id=p.product_id
 group by o.product_id
 having count(*) >=2 and sum(cast(cost_in_dollars as float)*units_sold) / sum(units_sold)  >3.0
+
+
+/* 24. Write a query to identify all companies (customer_id) whose mobile usage ranks in the bottom two positions. Mobile usage is the count of events where client_id = 'mobile'. Companies with the same usage count should share the same rank, and all companies in the bottom two ranks should be included. Return the customer_id and event count, sorted in ascending order by the number of events. */
+select * from fact_events;
+with cte as (
+select customer_id, count(*) as event_ct,
+       dense_rank() over(order by count(*)) rn
+from fact_events
+where client_id = 'mobile'
+group by customer_id
+)
+select customer_id, event_ct
+from cte
+where rn <=2
+order by event_ct
+
