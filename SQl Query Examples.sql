@@ -1026,3 +1026,22 @@ from cte
 where rn <=2
 order by event_ct
 
+/* 25. Classify each business as either a restaurant, cafe, school, or other.
+•	A restaurant should have the word 'restaurant' in the business name. This includes common international or accented variants, such as “restaurante”, “restauranté”, etc.
+•	A cafe should have either 'cafe', 'café', or 'coffee' in the business name.
+•	A school should have the word 'school' in the business name.
+•	All other businesses should be classified as 'other'.
+•   Ensure each business name appears only once in the final output. If multiple records exist for the same business, retain only one unique instance.
+The final output should include only the distinct business names and their corresponding classifications. */
+select distinct business_name,
+    (case
+        when lower(business_name) like '%restaurant%' then 'Restaurant'
+        when lower(business_name) like '%cafe%' or
+        lower(business_name) like '%coffee%' or 
+        lower(business_name) like '%caf_%'  then 'Cafe'
+        when lower(business_name) like '%school%' then 'School' 
+        else 'Other'
+        end) as business_type
+from sf_restaurant_health_violations
+
+
