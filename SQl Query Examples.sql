@@ -1044,4 +1044,50 @@ select distinct business_name,
         end) as business_type
 from sf_restaurant_health_violations
 
+/* 26. Calculate the total revenue from each customer in March 2019. Include only customers who were active in March 2019. An active user is a customer who made at least one transaction in March 2019.
+Output the revenue along with the customer id and sort the results based on the revenue in descending order. */
+select sum(total_order_cost) as rev, cust_id
+from orders
+where extract(year from order_date) = 2019 and extract(month from order_date) = 3
+group by cust_id
+order by rev desc
 
+
+/* 27. Find employees who are earning more than their managers. Output the employee's first name along with the corresponding salary. */
+select e.first_name, e.salary
+from employee as e
+join employee as m
+    on e.manager_id = m.id
+where e.salary > m.salary
+
+/* 28. Find the employee with the highest salary per department. Output the department name, employee's first name along with the corresponding salary. */
+with cte as (
+select department, first_name, salary, 
+rank() over(partition by department order by salary desc) as rnk
+from employee
+)
+
+select department, first_name, salary
+from cte
+where rnk = 1
+
+/* 29. Find the customers with the highest daily total order cost between 2019-02-01 and 2019-05-01. If a customer had more than one order on a certain day, sum the order costs on a daily basis. Output each customer's first name, total cost of their items, and the date. If multiple customers tie for the highest daily total on the same date, return all of them.
+For simplicity, you can assume that every first name in the dataset is unique. */
+with cte as (
+select o.cust_id, o.order_date, sum(o.total_order_cost) as totcost
+from orders o
+where order_date between '2019-02-01' and '2019-05-01'
+group by cust_id, order_date
+),
+
+cte2 as (
+select cust_id, order_date, totcost, 
+rank() over(partition by order_date order by totcost desc) as rnk
+from cte
+)
+
+select c.first_name, cte2.order_date, cte2.totcost as max_cost
+from cte2
+join customers c on cte2.cust_id = c.id
+where cte2.rnk=1
+order by cte2.order_date
