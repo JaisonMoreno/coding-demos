@@ -1091,3 +1091,23 @@ from cte2
 join customers c on cte2.cust_id = c.id
 where cte2.rnk=1
 order by cte2.order_date
+
+/* 30. Find the Olympics with the highest number of unique athletes. The Olympics game is a combination of the year and the season, and is found in the games column. Output the Olympics along with the corresponding number of athletes. The id column uniquely identifies an athlete. */
+select games, count(distinct id)
+from olympics_athletes_events
+group by games
+order by count(distinct id) desc
+limit 1
+
+-- or 
+with cte as (
+select games, count(distinct id) as ct,
+rank() over(order by count(distinct id) desc)
+from olympics_athletes_events
+group by games
+order by count(distinct id) desc
+)
+
+select games, ct
+from cte
+where rank = 1
