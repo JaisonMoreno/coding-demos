@@ -1150,3 +1150,29 @@ where delivery_region = 'San Jose'
     extract(hour from customer_placed_order_datetime) >=15 and
     extract(hour from customer_placed_order_datetime) <18 
 group by extract(hour from customer_placed_order_datetime)
+
+
+/* 33. Summarize the number of customers and transactions for each month in 2017, keeping transactions that were greater or equal to $5. */
+select month(transaction_date) as month, 
+       count(distinct customer_id) as n_cust, 
+       count(distinct transaction_id) as n_transactions
+from wfm_transactions
+where sales >=5 
+      and
+      year(transaction_date) = 2017
+group by month(transaction_date)
+order by month
+
+/* 34. You work for a multinational company that wants to calculate total sales across all their countries they do business in.
+You have 2 tables, one is a record of sales for all countries and currencies the company deals with, and the other holds currency exchange rate information.
+Calculate the total sales, per quarter, for the first 2 quarters in 2020, and report the sales in USD currency. */
+
+select datepart(quarter,sales_date), sum(sales_amount*exchange_rate) as tot_USD 
+from sf_sales_amount a
+join sf_exchange_rate x
+    on a.sales_date = x.date and
+       a.currency = x.source_currency
+where datepart(quarter, sales_date) <=2 and year(sales_date) = 2020
+group by datepart(quarter, sales_date)
+
+
