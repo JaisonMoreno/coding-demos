@@ -1111,3 +1111,42 @@ order by count(distinct id) desc
 select games, ct
 from cte
 where rank = 1
+
+-- or 
+SELECT games,
+       athletes_count
+FROM
+  (SELECT games,
+          COUNT(DISTINCT id) AS athletes_count,
+          MAX(COUNT(DISTINCT id)) OVER () AS max_count
+   FROM olympics_athletes_events
+   GROUP BY games) t
+WHERE athletes_count = max_count;
+
+
+
+/* 31. You have been asked to calculate the average earnings per order segmented by a combination of weekday (all 7 days) and hour using the column customer_placed_order_datetime.
+You have also been told that the column order_total represents the gross order total for each order. Therefore, you'll need to calculate the net order total.
+The gross order total is the total of the order before adding the tip and deducting the discount and refund.
+Note: In your output, the day of the week should be represented in text format (i.e., Monday). Also, round earnings to 2 decimals */
+select datename(weekday, customer_placed_order_datetime) as dow,
+       datepart(hour, customer_placed_order_datetime) as hour,
+       round(avg(order_total + tip_amount - (discount_amount + refunded_amount)),2) as net_total
+from doordash_delivery
+group by datename(weekday, customer_placed_order_datetime),
+         datepart(hour, customer_placed_order_datetime)
+order by dow, hour
+
+
+/* 32. The company you work for has asked you to look into the average order value per hour during rush hours in the San Jose area. Rush hour is from 15H - 17H59 inclusive.
+You have also been told that the column order_total represents the gross order total for each order. Therefore, you'll need to calculate the net order total.
+The gross order total is the total of the order before adding the tip and deducting the discount and refund.
+Use the column customer_placed_order_datetime for your calculations. */
+select extract(hour from customer_placed_order_datetime) as hour,
+       avg(order_total + tip_amount - (discount_amount + refunded_amount)) as avg_tot
+from delivery_details
+where delivery_region = 'San Jose' 
+    and 
+    extract(hour from customer_placed_order_datetime) >=15 and
+    extract(hour from customer_placed_order_datetime) <18 
+group by extract(hour from customer_placed_order_datetime)
