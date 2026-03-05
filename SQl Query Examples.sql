@@ -1176,3 +1176,19 @@ where datepart(quarter, sales_date) <=2 and year(sales_date) = 2020
 group by datepart(quarter, sales_date)
 
 
+/* 35. Calculate the net change in the number of products launched by companies in 2020 compared to 2019. Your output should include the company names and the net difference.
+(Net difference = Number of products launched in 2020 - The number launched in 2019.) */
+with cte as (
+select company_name, year,
+       lead(count(distinct product_name) , 1, 0) over(partition by company_name order by year) -  count(distinct product_name) as net_products
+from car_launches
+where year in (2019, 2020)
+group by company_name, year
+)
+
+select company_name, net_products
+from cte 
+where year=2019
+
+
+
