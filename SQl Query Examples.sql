@@ -1192,7 +1192,7 @@ where year=2019
 
 
 
-/* Find the total number of downloads for paying and non-paying users by date. Include only records where non-paying customers have more downloads 
+/* 36. Find the total number of downloads for paying and non-paying users by date. Include only records where non-paying customers have more downloads 
 than paying customers. The output should be sorted by earliest date first and contain 3 columns date, non-paying downloads, paying downloads */
 
 with cte as (
@@ -1227,3 +1227,9 @@ SELECT download_date,
 FROM download_totals
 WHERE (non_paying - paying) > 0
 ORDER BY download_date ASC;
+
+/* 37. Write a query that identifies cities with higher than average home prices when compared to the national average. Output the city names */
+select city
+from zillow_transactions
+group by city
+having avg(mkt_price) > (select avg(mkt_price) from zillow_transactions)
